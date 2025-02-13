@@ -1,15 +1,4 @@
 services:
-  avitotech:
-    build: .
-    container_name: avitotech
-    ports:
-      - "8080:8080"
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-        - internal
-    init: true
   db:
     image: postgres:latest
     restart: unless-stopped
@@ -27,10 +16,5 @@ services:
       start_period: 10s
     volumes:
       - psql_vol:/var/lib/postgresql/data
-    networks:
-        - internal
 volumes:
   psql_vol:
-
-networks:
-  internal:

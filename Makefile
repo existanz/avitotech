@@ -7,20 +7,19 @@ build:
 run:
 	@go run cmd/api/main.go
 
-# Create DB container
-docker-up:
+# Run application from docker
+docker-run:
 	@if docker compose up --build 2>/dev/null; then \
 		: ; \
 	else \
 		echo "Falling back to Docker Compose V1"; \
 		docker-compose up --build; \
 	fi
-
-# Shutdown DB container
-docker-down:
-	@if docker compose down 2>/dev/null; then \
+# Create DB container
+docker-db:
+	@if docker compose -f docker-compose-db.yml up --build 2>/dev/null; then \
 		: ; \
 	else \
 		echo "Falling back to Docker Compose V1"; \
-		docker-compose down; \
+		docker-compose -f docker-compose-db.yml up --build; \
 	fi
