@@ -1,6 +1,8 @@
 package server
 
 import (
+	"avitotech/internal/service"
+	"avitotech/pkg/jwt"
 	"fmt"
 	"net/http"
 	"os"
@@ -14,15 +16,17 @@ import (
 type Server struct {
 	port int
 
-	db database.Service
+	authService service.AuthService
 }
 
 func NewServer() *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
+	db := database.New()
+	jwtUtil := jwt.NewJWTUtil(os.Getenv("JWT_SECRET"))
 	NewServer := &Server{
 		port: port,
 
-		db: database.New(),
+		authService: service.NewAuthService(db, jwtUtil),
 	}
 
 	// Declare Server config
