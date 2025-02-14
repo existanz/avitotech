@@ -1,3 +1,5 @@
+include .env
+
 # Build the application
 build:
 	@echo "Building..."
@@ -23,3 +25,10 @@ docker-db:
 		echo "Falling back to Docker Compose V1"; \
 		docker-compose -f docker-compose-db.yml up --build; \
 	fi
+
+# Run goose migrations up
+migrate-up:
+	goose -dir ./migrations postgres "host=${DB_HOST} port=${DB_PORT} user=${DB_USERNAME} password=${DB_PASSWORD} dbname=${DB_DATABASE} search_path=${DB_SCHEMA} sslmode=disable" up
+
+migrate-down:
+	goose -dir ./migrations postgres "host=${DB_HOST} port=${DB_PORT} user=${DB_USERNAME} password=${DB_PASSWORD} dbname=${DB_DATABASE} search_path=${DB_SCHEMA} sslmode=disable" down

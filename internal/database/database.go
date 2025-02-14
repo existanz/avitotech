@@ -1,13 +1,15 @@
 package database
 
 import (
+	"avitotech/internal/entities"
 	"database/sql"
+	"errors"
 	"fmt"
-	"log"
-	"os"
-
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/joho/godotenv/autoload"
+	"log"
+	"log/slog"
+	"os"
 )
 
 // Service represents a service that interacts with a database.
@@ -15,6 +17,10 @@ type Service interface {
 	// Close terminates the database connection.
 	// It returns an error if the connection cannot be closed.
 	Close() error
+	// GetUserByName retrieves the user by the given username.
+	GetUserByName(username string) (*entities.User, error)
+	// AddUser inserts a new user into the database.
+	AddUser(user *entities.User) error
 }
 
 type service struct {
@@ -52,6 +58,29 @@ func New() Service {
 // If the connection is successfully closed, it returns nil.
 // If an error occurs while closing the connection, it returns the error.
 func (s *service) Close() error {
-	log.Printf("Disconnected from database: %s", database)
+	slog.Info("Disconnected from", "database", database)
 	return s.db.Close()
+}
+
+// GetUserByName retrieves the user by the given username.
+func (s *service) GetUserByName(username string) (*entities.User, error) {
+	user := &entities.User{}
+	row := s.db.QueryRow("SELECT id, username, password, created_at, updated_at FROM users WHERE username = $1", username)
+	err := row.Scan(&user.ID, &user.Username, &user.Password, &user.CreatedAt, &user.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+// AddUser inserts a new user into the database.
+func (s *service) AddUser(user *entities.User) error {
+	_, err := s.db.Exec("INSERT INTO users (username, password, created_at, updated_at) VALUES ($1, $2, $3, $4)", user.Username, user.Password, user.CreatedAt, user.UpdatedAt)
+	if err != nil {
+		return err
+	}
+	return nil
 }
