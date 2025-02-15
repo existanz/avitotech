@@ -21,12 +21,13 @@ func (s *Server) RegisterRoutes() http.Handler {
 		AllowCredentials: true,
 	}))
 
-	r.GET("/", s.BaseHandler)
 	r.POST("api/auth", s.AuthHandler)
 
 	r.Use(AuthMiddleware(s.secretKey))
 
 	r.GET("api/info", s.InfoHandler)
+	r.POST("api/sendCoin", s.SendCoinHandler)
+
 	return r
 }
 
@@ -71,4 +72,31 @@ func (s *Server) InfoHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, resp)
+}
+
+func (s *Server) SendCoinHandler(c *gin.Context) {
+	var req models.SendCoinRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errResp := models.NewErrorResponse(customErrors.ErrInvalidRequest)
+		c.JSON(http.StatusBadRequest, errResp)
+		return
+	}
+	userId, ok := c.Keys["userId"].(int)
+	if !ok {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(customErrors.ErrInvalidRequest))
+		return
+	}
+	err := s.transactionService.SendCoin(userId, &req)
+	if err != nil {
+		slog.Error("SendCoin handling Error:", err)
+		if errors.Is(err, customErrors.ErrNotEnoughCoins) {
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(customErrors.ErrNotEnoughCoins))
+		} else if errors.Is(err, customErrors.ErrInvalidUsername) {
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(customErrors.ErrInvalidUsername))
+		} else {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(customErrors.ErrISE))
+		}
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Coins sent"})
 }

@@ -17,8 +17,9 @@ type Server struct {
 	port      int
 	secretKey string
 
-	authService service.AuthService
-	infoService service.InfoService
+	authService        service.AuthService
+	infoService        service.InfoService
+	transactionService service.TransactionService
 }
 
 func NewServer() *http.Server {
@@ -30,8 +31,9 @@ func NewServer() *http.Server {
 		port:      port,
 		secretKey: secretKey,
 
-		authService: service.NewAuthService(db, jwtUtil),
-		infoService: service.NewInfoService(db),
+		authService:        service.NewAuthService(db, jwtUtil),
+		infoService:        service.NewInfoService(db),
+		transactionService: service.NewTransactionService(db),
 	}
 
 	// Declare Server config

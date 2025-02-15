@@ -1,6 +1,7 @@
 package database
 
 import (
+	"avitotech/internal/customErrors"
 	"avitotech/internal/entities"
 	"database/sql"
 	"errors"
@@ -10,6 +11,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"time"
 )
 
 // Service represents a service that interacts with a database.
@@ -29,6 +31,8 @@ type Service interface {
 	GetInventoryByUserID(userId int) ([]entities.InventoryItem, error)
 	// GetTransactionsByUserID retrieves the transactions by the given user ID.
 	GetTransactionsByUserID(userId int) ([]entities.Transaction, error)
+	// SendCoin sends coins from one user to another.
+	SendCoin(fromUserID, toUserID, amount int) error
 }
 
 type service struct {
@@ -159,4 +163,67 @@ func (s *service) GetTransactionsByUserID(userId int) ([]entities.Transaction, e
 		transactions = append(transactions, transaction)
 	}
 	return transactions, nil
+}
+
+// SendCoin sends coins from one user to another.
+func (s *service) SendCoin(fromUserID, toUserID, amount int) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	fromUserCoins, err := s.GetCoinsByUserID(fromUserID)
+	if err != nil {
+		return err
+	}
+
+	if fromUserCoins < amount {
+		return customErrors.ErrNotEnoughCoins
+	}
+
+	toUserCoins, err := s.GetCoinsByUserID(toUserID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.UpdateCoins(fromUserID, fromUserCoins-amount); err != nil {
+		return err
+	}
+	if err := s.UpdateCoins(toUserID, toUserCoins+amount); err != nil {
+		return err
+	}
+
+	transaction := &entities.Transaction{
+		FromUserID: fromUserID,
+		ToUserID:   toUserID,
+		Amount:     amount,
+	}
+	if err := s.SaveTransaction(transaction); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// UpdateCoins updates the number of coins by the given user ID.
+func (s *service) UpdateCoins(userId, coins int) error {
+	_, err := s.db.Exec("UPDATE coins SET amount = $1 WHERE user_id = $2", coins, userId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// SaveTransaction inserts a new transaction into the database.
+func (s *service) SaveTransaction(transaction *entities.Transaction) error {
+	_, err := s.db.Exec("INSERT INTO coin_transactions (from_user_id, to_user_id, amount, transaction_type, created_at) VALUES ($1, $2, $3, $4, $5)", transaction.FromUserID, transaction.ToUserID, transaction.Amount, "send", time.Now())
+	if err != nil {
+		return err
+	}
+	return nil
 }
