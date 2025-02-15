@@ -19,8 +19,16 @@ type Service interface {
 	Close() error
 	// GetUserByName retrieves the user by the given username.
 	GetUserByName(username string) (*entities.User, error)
+	// GetUserNameById retrieves the username by the given user ID.
+	GetUserNameById(userId int) string
 	// AddUser inserts a new user into the database.
 	AddUser(user *entities.User) error
+	// GetCoinsByUserID retrieves the number of coins by the given user ID
+	GetCoinsByUserID(userId int) (int, error)
+	// GetInventoryByUserID retrieves the inventory items by the given user ID.
+	GetInventoryByUserID(userId int) ([]entities.InventoryItem, error)
+	// GetTransactionsByUserID retrieves the transactions by the given user ID.
+	GetTransactionsByUserID(userId int) ([]entities.Transaction, error)
 }
 
 type service struct {
@@ -76,6 +84,17 @@ func (s *service) GetUserByName(username string) (*entities.User, error) {
 	return user, nil
 }
 
+// GetUserNameById retrieves the username by the given user ID.
+func (s *service) GetUserNameById(userId int) string {
+	var username string
+	row := s.db.QueryRow("SELECT username FROM users WHERE id = $1", userId)
+	err := row.Scan(&username)
+	if err != nil {
+		return "<unknown>"
+	}
+	return username
+}
+
 // AddUser inserts a new user into the database.
 func (s *service) AddUser(user *entities.User) error {
 	_, err := s.db.Exec("INSERT INTO users (username, password, created_at, updated_at) VALUES ($1, $2, $3, $4)", user.Username, user.Password, user.CreatedAt, user.UpdatedAt)
@@ -83,4 +102,61 @@ func (s *service) AddUser(user *entities.User) error {
 		return err
 	}
 	return nil
+}
+
+// GetCoinsByUserID retrieves the number of coins by the given user ID.
+func (s *service) GetCoinsByUserID(userId int) (int, error) {
+	var coins int
+	row := s.db.QueryRow("SELECT amount FROM coins WHERE user_id = $1", userId)
+	err := row.Scan(&coins)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	return coins, nil
+}
+
+// GetInventoryByUserID retrieves the inventory items by the given user ID.
+func (s *service) GetInventoryByUserID(userId int) ([]entities.InventoryItem, error) {
+	var inventoryItems []entities.InventoryItem
+	rows, err := s.db.Query("SELECT item_type, quantity FROM inventory WHERE user_id = $1", userId)
+	if errors.Is(err, sql.ErrNoRows) {
+		return inventoryItems, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var item entities.InventoryItem
+		err = rows.Scan(&item.ItemType, &item.Quantity)
+
+		if err != nil {
+			return nil, err
+		}
+		inventoryItems = append(inventoryItems, item)
+	}
+	return inventoryItems, nil
+}
+
+// GetTransactionsByUserID retrieves the transactions by the given user ID.
+func (s *service) GetTransactionsByUserID(userId int) ([]entities.Transaction, error) {
+	var transactions []entities.Transaction
+	rows, err := s.db.Query("SELECT from_user_id, to_user_id, amount FROM coin_transactions WHERE from_user_id = $1 OR to_user_id = $1", userId)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var transaction entities.Transaction
+		err = rows.Scan(&transaction.FromUserID, &transaction.ToUserID, &transaction.Amount)
+		if err != nil {
+			return nil, err
+		}
+		transactions = append(transactions, transaction)
+	}
+	return transactions, nil
 }

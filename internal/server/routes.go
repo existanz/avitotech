@@ -58,8 +58,17 @@ func (s *Server) AuthHandler(c *gin.Context) {
 }
 
 func (s *Server) InfoHandler(c *gin.Context) {
-	resp := make(map[string]string)
-	resp["message"] = "Info handler is working"
+	userId, ok := c.Keys["userId"].(int)
+	if !ok {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(customErrors.ErrInvalidRequest))
+		return
+	}
+	resp, err := s.infoService.GetInfo(userId)
+	if err != nil {
+		slog.Error("Info handling Error:", err)
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(customErrors.ErrISE))
+		return
+	}
 
 	c.JSON(http.StatusOK, resp)
 }
