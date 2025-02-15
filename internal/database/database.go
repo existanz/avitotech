@@ -51,6 +51,10 @@ var (
 	dbInstance *service
 )
 
+const (
+	INITIAL_COINS = 1000
+)
+
 func New() Service {
 	// Reuse Connection
 	if dbInstance != nil {
@@ -103,10 +107,15 @@ func (s *service) GetUserNameById(userId int) string {
 
 // AddUser inserts a new user into the database.
 func (s *service) AddUser(user *entities.User) error {
-	_, err := s.db.Exec("INSERT INTO users (username, password, created_at, updated_at) VALUES ($1, $2, $3, $4)", user.Username, user.Password, user.CreatedAt, user.UpdatedAt)
+	var userId int
+	err := s.db.QueryRow("INSERT INTO users (username, password, created_at, updated_at) VALUES ($1, $2, $3, $4) RETURNING id", user.Username, user.Password, user.CreatedAt, user.UpdatedAt).Scan(&userId)
 	if err != nil {
 		return err
 	}
+	if err := s.InitUserWallet(userId); err != nil {
+		return err
+	}
+	slog.Info("User created and added coins to his wallet", "username", user.Username, "coins", INITIAL_COINS)
 	return nil
 }
 
@@ -306,6 +315,14 @@ func (s *service) AddItemToInventory(userId int, itemType string) error {
 		}
 	}
 	if err = tx.Commit(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// InitUserWallet initializes the user wallet with the initial amount of coins.
+func (s *service) InitUserWallet(userId int) error {
+	if _, err := s.db.Exec("INSERT INTO coins (user_id, amount) VALUES ($1, $2)", userId, INITIAL_COINS); err != nil {
 		return err
 	}
 	return nil
