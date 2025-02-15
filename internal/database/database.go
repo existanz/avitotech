@@ -33,6 +33,8 @@ type Service interface {
 	GetTransactionsByUserID(userId int) ([]entities.Transaction, error)
 	// SendCoin sends coins from one user to another.
 	SendCoin(fromUserID, toUserID, amount int) error
+	// BuyItem buys an item for the given user.
+	BuyItem(userId int, itemType string) error
 }
 
 type service struct {
@@ -223,6 +225,87 @@ func (s *service) UpdateCoins(userId, coins int) error {
 func (s *service) SaveTransaction(transaction *entities.Transaction) error {
 	_, err := s.db.Exec("INSERT INTO coin_transactions (from_user_id, to_user_id, amount, transaction_type, created_at) VALUES ($1, $2, $3, $4, $5)", transaction.FromUserID, transaction.ToUserID, transaction.Amount, "send", time.Now())
 	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// BuyItem buys an item for the given user.
+func (s *service) BuyItem(userId int, itemType string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	coins, err := s.GetCoinsByUserID(userId)
+	if err != nil {
+		return err
+	}
+
+	itemPrice, err := s.GetItemPrice(itemType)
+	if err != nil {
+		return err
+	}
+
+	if coins < itemPrice {
+		return customErrors.ErrNotEnoughCoins
+	}
+
+	if err := s.UpdateCoins(userId, coins-itemPrice); err != nil {
+		return err
+	}
+
+	if err := s.AddItemToInventory(userId, itemType); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetItemPrice retrieves the price of the item by the given item type.
+func (s *service) GetItemPrice(itemType string) (int, error) {
+	var price int
+	row := s.db.QueryRow("SELECT price FROM shop WHERE item_type = $1", itemType)
+	err := row.Scan(&price)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, customErrors.ErrNotFound
+	}
+	if err != nil {
+		return 0, err
+	}
+	return price, nil
+}
+
+// AddItemToInventory adds an item to the inventory of the given user.
+func (s *service) AddItemToInventory(userId int, itemType string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var quantity int
+	err = s.db.QueryRow("SELECT quantity FROM inventory WHERE user_id = $1 AND item_type = $2", userId, itemType).Scan(&quantity)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			_, err = s.db.Exec("INSERT INTO inventory (user_id, item_type, quantity) VALUES ($1, $2, 1)", userId, itemType)
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	} else {
+		_, err = s.db.Exec("UPDATE inventory SET quantity = quantity + 1 WHERE user_id = $1 AND item_type = $2", userId, itemType)
+		if err != nil {
+			return err
+		}
+	}
+	if err = tx.Commit(); err != nil {
 		return err
 	}
 	return nil

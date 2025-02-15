@@ -21,12 +21,11 @@ func NewTransactionService(db database.Service) *transactionService {
 }
 
 func (s *transactionService) SendCoin(userID int, req *models.SendCoinRequest) error {
-	// TODO: Implement this method
 	toUser, err := s.db.GetUserByName(req.ToUser)
 	if err != nil || toUser == nil {
 		return customErrors.ErrInvalidUsername
 	}
-	err = s.db.SendCoin(userID, int(toUser.ID), req.Amount)
+	err = s.db.SendCoin(userID, toUser.ID, req.Amount)
 	if err != nil {
 		return err
 	}

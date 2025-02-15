@@ -20,6 +20,7 @@ type Server struct {
 	authService        service.AuthService
 	infoService        service.InfoService
 	transactionService service.TransactionService
+	shopService        service.ShopService
 }
 
 func NewServer() *http.Server {
@@ -34,6 +35,7 @@ func NewServer() *http.Server {
 		authService:        service.NewAuthService(db, jwtUtil),
 		infoService:        service.NewInfoService(db),
 		transactionService: service.NewTransactionService(db),
+		shopService:        service.NewShopService(db),
 	}
 
 	// Declare Server config

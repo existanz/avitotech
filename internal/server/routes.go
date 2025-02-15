@@ -4,11 +4,11 @@ import (
 	"avitotech/internal/customErrors"
 	"avitotech/internal/models"
 	"errors"
-	"log/slog"
-	"net/http"
-
+	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"log/slog"
+	"net/http"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
@@ -27,15 +27,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.GET("api/info", s.InfoHandler)
 	r.POST("api/sendCoin", s.SendCoinHandler)
+	r.GET("api/buy/:item", s.BuyItemHandler)
 
 	return r
-}
-
-func (s *Server) BaseHandler(c *gin.Context) {
-	resp := make(map[string]string)
-	resp["message"] = "Handler is working"
-
-	c.JSON(http.StatusOK, resp)
 }
 
 func (s *Server) AuthHandler(c *gin.Context) {
@@ -93,6 +87,31 @@ func (s *Server) SendCoinHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, models.NewErrorResponse(customErrors.ErrNotEnoughCoins))
 		} else if errors.Is(err, customErrors.ErrInvalidUsername) {
 			c.JSON(http.StatusBadRequest, models.NewErrorResponse(customErrors.ErrInvalidUsername))
+		} else {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(customErrors.ErrISE))
+		}
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (s *Server) BuyItemHandler(c *gin.Context) {
+	itemType := c.Param("item")
+	if itemType == "" {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(fmt.Errorf("item type is required")))
+		return
+	}
+
+	userId, ok := c.Keys["userId"].(int)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(customErrors.ErrUnauthorized))
+		return
+	}
+
+	if err := s.shopService.BuyItem(userId, itemType); err != nil {
+		if errors.Is(err, customErrors.ErrNotEnoughCoins) || errors.Is(err, customErrors.ErrNotFound) {
+			c.JSON(http.StatusBadRequest, models.NewErrorResponse(err))
 		} else {
 			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(customErrors.ErrISE))
 		}
