@@ -24,6 +24,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r.GET("/", s.BaseHandler)
 	r.POST("api/auth", s.AuthHandler)
 
+	r.Use(AuthMiddleware(s.secretKey))
+
+	r.GET("api/info", s.InfoHandler)
 	return r
 }
 
@@ -51,5 +54,12 @@ func (s *Server) AuthHandler(c *gin.Context) {
 		}
 		return
 	}
+	c.JSON(http.StatusOK, resp)
+}
+
+func (s *Server) InfoHandler(c *gin.Context) {
+	resp := make(map[string]string)
+	resp["message"] = "Info handler is working"
+
 	c.JSON(http.StatusOK, resp)
 }

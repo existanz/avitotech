@@ -14,19 +14,24 @@ import (
 )
 
 type Server struct {
-	port int
+	port      int
+	secretKey string
 
 	authService service.AuthService
+	infoService service.InfoService
 }
 
 func NewServer() *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	db := database.New()
-	jwtUtil := jwt.NewJWTUtil(os.Getenv("JWT_SECRET"))
+	secretKey := os.Getenv("JWT_SECRET")
+	jwtUtil := jwt.NewJWTUtil(secretKey)
 	NewServer := &Server{
-		port: port,
+		port:      port,
+		secretKey: secretKey,
 
 		authService: service.NewAuthService(db, jwtUtil),
+		infoService: service.NewInfoService(db),
 	}
 
 	// Declare Server config
