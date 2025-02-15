@@ -98,5 +98,6 @@ func (s *Server) SendCoinHandler(c *gin.Context) {
 		}
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Coins sent"})
+
+	c.Status(http.StatusOK)
 }

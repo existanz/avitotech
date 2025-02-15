@@ -15,7 +15,7 @@ func NewJWTUtil(secretKey string) *JWTUtil {
 	return &JWTUtil{secretKey: []byte(secretKey)}
 }
 
-func (j *JWTUtil) GenerateToken(userID uint, username string) (string, error) {
+func (j *JWTUtil) GenerateToken(userID int, username string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id":  userID,
 		"username": username,
