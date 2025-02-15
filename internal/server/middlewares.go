@@ -4,9 +4,11 @@ import (
 	"avitotech/internal/customErrors"
 	"avitotech/internal/models"
 	jwt2 "avitotech/pkg/jwt"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"log/slog"
 	"net/http"
+	"time"
 )
 
 func AuthMiddleware(secretKey string) gin.HandlerFunc {
@@ -27,5 +29,13 @@ func AuthMiddleware(secretKey string) gin.HandlerFunc {
 		}
 		c.Set("userId", userId)
 		c.Next()
+	}
+}
+
+func LoggerMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		c.Next()
+		slog.Info(fmt.Sprintf("--> [%s] \"%s\" [%d] %s", c.Request.Method, c.Request.URL, c.Writer.Status(), time.Since(start)))
 	}
 }

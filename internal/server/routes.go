@@ -12,8 +12,9 @@ import (
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
-	r := gin.Default()
-
+	r := gin.New()
+	r.Use(LoggerMiddleware())
+	r.Use(gin.Recovery())
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173"}, // My frontend URL
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
@@ -41,7 +42,7 @@ func (s *Server) AuthHandler(c *gin.Context) {
 	}
 	resp, err := s.authService.Authenticate(&req)
 	if err != nil {
-		slog.Error("Auth handling Error:", err)
+		slog.Error("Auth handling", "Error", err)
 		if errors.Is(err, customErrors.ErrInvalidCredentials) {
 			c.JSON(http.StatusUnauthorized, models.NewErrorResponse(customErrors.ErrInvalidCredentials))
 		} else {
@@ -60,7 +61,7 @@ func (s *Server) InfoHandler(c *gin.Context) {
 	}
 	resp, err := s.infoService.GetInfo(userId)
 	if err != nil {
-		slog.Error("Info handling Error:", err)
+		slog.Error("Info handling", "Error", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(customErrors.ErrISE))
 		return
 	}
@@ -71,6 +72,7 @@ func (s *Server) InfoHandler(c *gin.Context) {
 func (s *Server) SendCoinHandler(c *gin.Context) {
 	var req models.SendCoinRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		slog.Error("SendCoin handling", "Error", err)
 		errResp := models.NewErrorResponse(customErrors.ErrInvalidRequest)
 		c.JSON(http.StatusBadRequest, errResp)
 		return
@@ -82,7 +84,7 @@ func (s *Server) SendCoinHandler(c *gin.Context) {
 	}
 	err := s.transactionService.SendCoin(userId, &req)
 	if err != nil {
-		slog.Error("SendCoin handling Error:", err)
+		slog.Error("SendCoin handling", "Error", err)
 		if errors.Is(err, customErrors.ErrNotEnoughCoins) {
 			c.JSON(http.StatusBadRequest, models.NewErrorResponse(customErrors.ErrNotEnoughCoins))
 		} else if errors.Is(err, customErrors.ErrInvalidUsername) {
@@ -110,6 +112,7 @@ func (s *Server) BuyItemHandler(c *gin.Context) {
 	}
 
 	if err := s.shopService.BuyItem(userId, itemType); err != nil {
+		slog.Error("BuyItem handling", "Error", err)
 		if errors.Is(err, customErrors.ErrNotEnoughCoins) || errors.Is(err, customErrors.ErrNotFound) {
 			c.JSON(http.StatusBadRequest, models.NewErrorResponse(err))
 		} else {

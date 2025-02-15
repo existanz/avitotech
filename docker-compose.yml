@@ -10,6 +10,9 @@ services:
     networks:
         - internal
     init: true
+    environment:
+      DB_HOST: db
+
   db:
     image: postgres:latest
     restart: unless-stopped
