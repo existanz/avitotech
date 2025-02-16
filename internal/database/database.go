@@ -3,6 +3,7 @@ package database
 import (
 	"avitotech/internal/customErrors"
 	"avitotech/internal/entities"
+	"avitotech/pkg/imcache"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -38,7 +40,8 @@ type Service interface {
 }
 
 type service struct {
-	db *sql.DB
+	db    *sql.DB
+	cache imcache.Cache
 }
 
 var (
@@ -65,8 +68,10 @@ func New() Service {
 	if err != nil {
 		log.Fatal(err)
 	}
+	cache := imcache.NewInMemoryCache(1 * time.Minute)
 	dbInstance = &service{
-		db: db,
+		db:    db,
+		cache: cache,
 	}
 	return dbInstance
 }
@@ -82,6 +87,9 @@ func (s *service) Close() error {
 
 // GetUserByName retrieves the user by the given username.
 func (s *service) GetUserByName(username string) (*entities.User, error) {
+	if user, ok := s.cache.Get(username); ok {
+		return user.(*entities.User), nil
+	}
 	user := &entities.User{}
 	row := s.db.QueryRow("SELECT id, username, password, created_at, updated_at FROM users WHERE username = $1", username)
 	err := row.Scan(&user.ID, &user.Username, &user.Password, &user.CreatedAt, &user.UpdatedAt)
@@ -91,6 +99,7 @@ func (s *service) GetUserByName(username string) (*entities.User, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.cache.Set(username, user)
 	return user, nil
 }
 
@@ -135,6 +144,9 @@ func (s *service) GetCoinsByUserID(userId int) (int, error) {
 
 // GetInventoryByUserID retrieves the inventory items by the given user ID.
 func (s *service) GetInventoryByUserID(userId int) ([]entities.InventoryItem, error) {
+	if inventoryItems, ok := s.cache.Get(strconv.Itoa(userId)); ok {
+		return inventoryItems.([]entities.InventoryItem), nil
+	}
 	var inventoryItems []entities.InventoryItem
 	rows, err := s.db.Query("SELECT item_type, quantity FROM inventory WHERE user_id = $1", userId)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -152,6 +164,7 @@ func (s *service) GetInventoryByUserID(userId int) ([]entities.InventoryItem, er
 		}
 		inventoryItems = append(inventoryItems, item)
 	}
+	s.cache.Set(strconv.Itoa(userId), inventoryItems)
 	return inventoryItems, nil
 }
 
