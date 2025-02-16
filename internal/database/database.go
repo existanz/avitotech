@@ -7,13 +7,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	_ "github.com/joho/godotenv/autoload"
 	"log"
 	"log/slog"
 	"os"
 	"strconv"
 	"time"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/joho/godotenv/autoload"
 )
 
 // Service represents a service that interacts with a database.
