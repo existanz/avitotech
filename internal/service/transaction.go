@@ -25,6 +25,9 @@ func (s *transactionService) SendCoin(userID int, req *models.SendCoinRequest) e
 	if err != nil || toUser == nil {
 		return customErrors.ErrInvalidUsername
 	}
+	if toUser.ID == userID {
+		return customErrors.ErrInvalidUsername
+	}
 	err = s.db.SendCoin(userID, toUser.ID, req.Amount)
 	if err != nil {
 		return err

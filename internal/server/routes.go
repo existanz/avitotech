@@ -65,6 +65,9 @@ func (s *Server) InfoHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(customErrors.ErrISE))
 		return
 	}
+	if resp == nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(customErrors.ErrNotFound))
+	}
 
 	c.JSON(http.StatusOK, resp)
 }
