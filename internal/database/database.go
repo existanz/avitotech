@@ -68,7 +68,7 @@ func New() Service {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cache := imcache.NewInMemoryCache(1 * time.Minute)
+	cache := imcache.NewInMemoryCache(5 * time.Minute)
 	dbInstance = &service{
 		db:    db,
 		cache: cache,
@@ -327,6 +327,7 @@ func (s *service) AddItemToInventory(userId int, itemType string) error {
 			return err
 		}
 	}
+	s.cache.Delete(strconv.Itoa(userId))
 	if err = tx.Commit(); err != nil {
 		return err
 	}
